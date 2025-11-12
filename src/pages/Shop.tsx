@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ProductCard from "@/components/ProductCard";
@@ -8,30 +8,160 @@ import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { SlidersHorizontal } from "lucide-react";
-import frameModern from "@/assets/frame-modern.jpg";
-import frameRustic from "@/assets/frame-rustic.jpg";
-import frameAbstract from "@/assets/frame-abstract.jpg";
-import frameMinimalist from "@/assets/frame-minimalist.jpg";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+
+type Product = {
+  id: string;
+  name: string;
+  price: number;
+  image_url: string | null;
+  category_id: string | null;
+  material: string | null;
+  dimensions: string | null;
+  categories: {
+    name: string;
+  } | null;
+};
 
 const Shop = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [priceRange, setPriceRange] = useState([0, 500]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedMaterials, setSelectedMaterials] = useState<string[]>([]);
+  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState("popularity");
+  const { toast } = useToast();
 
-  // Mock products - will be replaced with actual data
-  const products = [
-    { id: "1", name: "Modern Geometric Frame", price: 89.99, image: frameModern, category: "Modern" },
-    { id: "2", name: "Rustic Botanical Print", price: 69.99, image: frameRustic, category: "Rustic" },
-    { id: "3", name: "Abstract Contemporary Art", price: 129.99, image: frameAbstract, category: "Abstract" },
-    { id: "4", name: "Minimalist Line Art", price: 79.99, image: frameMinimalist, category: "Minimalist" },
-    { id: "5", name: "Modern Gold Frame", price: 99.99, image: frameModern, category: "Modern" },
-    { id: "6", name: "Rustic Wood Frame", price: 59.99, image: frameRustic, category: "Rustic" },
-    { id: "7", name: "Abstract Watercolor", price: 149.99, image: frameAbstract, category: "Abstract" },
-    { id: "8", name: "Minimalist Black Frame", price: 89.99, image: frameMinimalist, category: "Minimalist" },
-  ];
-
-  const categories = ["Modern", "Rustic", "Abstract", "Minimalist"];
   const materials = ["Wood", "Metal", "Acrylic", "Canvas"];
   const sizes = ["Small (8x10)", "Medium (16x20)", "Large (24x36)", "Extra Large (30x40)"];
+
+  // Fetch categories
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name")
+        .order("display_order");
+
+      if (error) {
+        toast({
+          title: "Error loading categories",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        setCategories(data || []);
+      }
+    };
+
+    fetchCategories();
+  }, [toast]);
+
+  // Fetch and filter products
+  useEffect(() => {
+    const fetchProducts = async () => {
+      setLoading(true);
+      
+      let query = supabase
+        .from("products")
+        .select(`
+          id,
+          name,
+          price,
+          image_url,
+          category_id,
+          material,
+          dimensions,
+          is_featured,
+          created_at,
+          categories (
+            name
+          )
+        `)
+        .eq("is_active", true);
+
+      // Apply category filter
+      if (selectedCategories.length > 0) {
+        query = query.in("category_id", selectedCategories);
+      }
+
+      // Apply material filter
+      if (selectedMaterials.length > 0) {
+        query = query.in("material", selectedMaterials);
+      }
+
+      // Apply price range filter
+      query = query.gte("price", priceRange[0]).lte("price", priceRange[1]);
+
+      // Apply sorting
+      switch (sortBy) {
+        case "newest":
+          query = query.order("created_at", { ascending: false });
+          break;
+        case "price-low":
+          query = query.order("price", { ascending: true });
+          break;
+        case "price-high":
+          query = query.order("price", { ascending: false });
+          break;
+        case "popularity":
+        default:
+          query = query.order("is_featured", { ascending: false }).order("created_at", { ascending: false });
+          break;
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        toast({
+          title: "Error loading products",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        setProducts(data || []);
+      }
+      
+      setLoading(false);
+    };
+
+    fetchProducts();
+  }, [selectedCategories, selectedMaterials, selectedSizes, priceRange, sortBy, toast]);
+
+  const toggleCategory = (categoryId: string) => {
+    setSelectedCategories(prev =>
+      prev.includes(categoryId)
+        ? prev.filter(id => id !== categoryId)
+        : [...prev, categoryId]
+    );
+  };
+
+  const toggleMaterial = (material: string) => {
+    setSelectedMaterials(prev =>
+      prev.includes(material)
+        ? prev.filter(m => m !== material)
+        : [...prev, material]
+    );
+  };
+
+  const toggleSize = (size: string) => {
+    setSelectedSizes(prev =>
+      prev.includes(size)
+        ? prev.filter(s => s !== size)
+        : [...prev, size]
+    );
+  };
+
+  const clearFilters = () => {
+    setSelectedCategories([]);
+    setSelectedMaterials([]);
+    setSelectedSizes([]);
+    setPriceRange([0, 500]);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -58,10 +188,14 @@ const Shop = () => {
                 <h3 className="font-serif font-semibold text-lg mb-4">Categories</h3>
                 <div className="space-y-3">
                   {categories.map((category) => (
-                    <div key={category} className="flex items-center space-x-2">
-                      <Checkbox id={category} />
-                      <Label htmlFor={category} className="text-sm cursor-pointer">
-                        {category}
+                    <div key={category.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={category.id}
+                        checked={selectedCategories.includes(category.id)}
+                        onCheckedChange={() => toggleCategory(category.id)}
+                      />
+                      <Label htmlFor={category.id} className="text-sm cursor-pointer">
+                        {category.name}
                       </Label>
                     </div>
                   ))}
@@ -73,7 +207,11 @@ const Shop = () => {
                 <div className="space-y-3">
                   {materials.map((material) => (
                     <div key={material} className="flex items-center space-x-2">
-                      <Checkbox id={material} />
+                      <Checkbox
+                        id={material}
+                        checked={selectedMaterials.includes(material)}
+                        onCheckedChange={() => toggleMaterial(material)}
+                      />
                       <Label htmlFor={material} className="text-sm cursor-pointer">
                         {material}
                       </Label>
@@ -87,7 +225,11 @@ const Shop = () => {
                 <div className="space-y-3">
                   {sizes.map((size) => (
                     <div key={size} className="flex items-center space-x-2">
-                      <Checkbox id={size} />
+                      <Checkbox
+                        id={size}
+                        checked={selectedSizes.includes(size)}
+                        onCheckedChange={() => toggleSize(size)}
+                      />
                       <Label htmlFor={size} className="text-sm cursor-pointer">
                         {size}
                       </Label>
@@ -113,8 +255,8 @@ const Shop = () => {
                 </div>
               </div>
 
-              <Button variant="default" className="w-full">
-                Apply Filters
+              <Button variant="outline" className="w-full" onClick={clearFilters}>
+                Clear Filters
               </Button>
             </div>
           </aside>
@@ -137,7 +279,7 @@ const Shop = () => {
                   Filters
                 </Button>
                 
-                <Select defaultValue="popularity">
+                <Select value={sortBy} onValueChange={setSortBy}>
                   <SelectTrigger className="w-full sm:w-48">
                     <SelectValue placeholder="Sort by" />
                   </SelectTrigger>
@@ -152,11 +294,31 @@ const Shop = () => {
             </div>
 
             {/* Products Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {products.map((product) => (
-                <ProductCard key={product.id} {...product} />
-              ))}
-            </div>
+            {loading ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">Loading products...</p>
+              </div>
+            ) : products.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">No products found matching your filters.</p>
+                <Button variant="outline" className="mt-4" onClick={clearFilters}>
+                  Clear Filters
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {products.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    id={product.id}
+                    name={product.name}
+                    price={product.price}
+                    image={product.image_url || ""}
+                    category={product.categories?.name}
+                  />
+                ))}
+              </div>
+            )}
 
             {/* Pagination */}
             <div className="flex justify-center mt-12 gap-2">
