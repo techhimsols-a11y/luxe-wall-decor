@@ -122,8 +122,7 @@ const AdminDashboard = () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        toast.error("Please log in to access admin dashboard");
-        navigate("/");
+        navigate("/auth");
         return;
       }
 
@@ -145,6 +144,15 @@ const AdminDashboard = () => {
     };
 
     checkAdmin();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        navigate('/auth');
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, [navigate]);
 
   // Fetch all data
