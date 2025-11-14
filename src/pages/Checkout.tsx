@@ -6,18 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { CreditCard, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
 import { toast } from "sonner";
 
 const Checkout = () => {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
 
   const handlePlaceOrder = (e: React.FormEvent) => {
     e.preventDefault();
     toast.success("Order placed successfully!", {
-      description: "You will receive a confirmation email shortly.",
+      description: "Payment can be made later. You will receive order confirmation shortly.",
     });
     setTimeout(() => navigate("/dashboard"), 2000);
   };
@@ -29,30 +27,6 @@ const Checkout = () => {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="max-w-5xl mx-auto">
           <h1 className="font-serif text-4xl font-bold text-foreground mb-8">Checkout</h1>
-
-          {/* Progress Steps */}
-          <div className="flex items-center justify-center mb-12">
-            {[1, 2, 3].map((s) => (
-              <div key={s} className="flex items-center">
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold transition-smooth ${
-                    step >= s
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-muted-foreground"
-                  }`}
-                >
-                  {s}
-                </div>
-                {s < 3 && (
-                  <div
-                    className={`w-20 h-1 mx-2 transition-smooth ${
-                      step > s ? "bg-primary" : "bg-secondary"
-                    }`}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Forms */}
@@ -104,46 +78,15 @@ const Checkout = () => {
                       <Input id="zip" placeholder="10001" required />
                     </div>
                   </div>
-                </div>
-
-                {/* Payment Information */}
-                <div className="bg-card p-6 rounded-xl border border-border/50 space-y-6">
-                  <div className="flex items-center justify-between">
-                    <h2 className="font-serif text-2xl font-semibold text-foreground">
-                      Payment Information
-                    </h2>
-                    <Lock className="h-5 w-5 text-muted-foreground" />
-                  </div>
-
-                  <RadioGroup defaultValue="card" className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="card" id="card" />
-                      <Label htmlFor="card" className="flex items-center cursor-pointer">
-                        <CreditCard className="mr-2 h-4 w-4" />
-                        Credit / Debit Card
-                      </Label>
-                    </div>
-                  </RadioGroup>
-
-                  <div>
-                    <Label htmlFor="cardNumber">Card Number</Label>
-                    <Input id="cardNumber" placeholder="1234 5678 9012 3456" required />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="expiry">Expiry Date</Label>
-                      <Input id="expiry" placeholder="MM/YY" required />
-                    </div>
-                    <div>
-                      <Label htmlFor="cvv">CVV</Label>
-                      <Input id="cvv" placeholder="123" maxLength={4} required />
-                    </div>
+                  <div className="bg-muted/30 p-4 rounded-lg border border-border/30 mt-4">
+                    <p className="text-sm text-muted-foreground text-center">
+                      Payment will be collected after order confirmation based on your order ID
+                    </p>
                   </div>
                 </div>
 
                 <Button type="submit" variant="default" size="lg" className="w-full">
-                  Place Order
+                  Place Order (Pay Later)
                 </Button>
               </form>
             </div>
