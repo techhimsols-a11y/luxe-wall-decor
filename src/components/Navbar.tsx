@@ -9,21 +9,41 @@ const Navbar = () => {
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const cartItemCount = 0; // Will be dynamic later
 
   useEffect(() => {
     // Check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        checkAdminStatus(session.user.id);
+      }
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        checkAdminStatus(session.user.id);
+      } else {
+        setIsAdmin(false);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const checkAdminStatus = async (userId: string) => {
+    const { data } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "admin")
+      .single();
+    
+    setIsAdmin(!!data);
+  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -55,6 +75,11 @@ const Navbar = () => {
             <Link to="/about" className="text-sm font-medium text-foreground hover:text-primary transition-smooth">
               About
             </Link>
+            {isAdmin && (
+              <Link to="/admin-dashboard" className="text-sm font-medium text-accent hover:text-primary transition-smooth">
+                Admin
+              </Link>
+            )}
           </div>
 
           {/* Right Actions */}
@@ -130,6 +155,15 @@ const Navbar = () => {
             >
               About
             </Link>
+            {isAdmin && (
+              <Link
+                to="/admin-dashboard"
+                className="block px-4 py-2 text-sm font-medium text-accent hover:bg-secondary rounded-md transition-smooth"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Admin Dashboard
+              </Link>
+            )}
           </div>
         )}
       </div>
